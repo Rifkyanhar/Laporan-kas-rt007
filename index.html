@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laporan Keuangan RT 07 / RW 01</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F7F5EF;
+    --surface:#FFFFFF;
+    --border:#E4DDC9;
+    --text:#2B3A2F;
+    --muted:#7A7362;
+    --accent:#3F6D50;
+    --accent-light:#EAF2EC;
+    --income:#2F8F5B;
+    --expense:#C1553A;
+    --gold:#C9A227;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Source Serif 4',Georgia,serif;font-size:18px;line-height:1.6;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  .wrap{max-width:880px;margin:0 auto;padding:40px 20px 64px;}
+  header{padding-bottom:24px;border-bottom:3px solid var(--gold);margin-bottom:28px;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;color:var(--accent);font-size:14px;text-transform:uppercase;letter-spacing:.1em;margin:0 0 8px;}
+  h1{font-size:36px;margin:0;line-height:1.2;color:var(--text);}
+  .desc{font-size:18px;color:var(--muted);margin:10px 0 0;max-width:520px;}
+  .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:28px;}
+  .cell{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;}
+  .cell .lbl{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px;}
+  .cell .val{font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;color:var(--text);margin:0;}
+  .cell.total{background:var(--accent-light);border-color:var(--accent);}
+  .cell.total .val{color:var(--accent);font-size:26px;font-weight:700;}
+  table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;font-size:17px;}
+  thead th{background:var(--accent);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:13px;text-align:left;padding:14px 16px;letter-spacing:.04em;}
+  tbody td{padding:16px;border-bottom:1px solid var(--border);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#FBFAF6;}
+  .right{text-align:right;font-family:'IBM Plex Mono',monospace;}
+  .masuk{color:var(--income);}
+  .keluar{color:var(--expense);}
+  .bold{font-weight:700;}
+  .sub{font-size:14px;color:var(--muted);display:block;margin-top:5px;}
+  .empty{text-align:center;padding:48px 16px;color:var(--muted);font-size:17px;}
+  footer{font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--muted);margin-top:20px;line-height:1.8;}
+  .status{font-size:14px;color:var(--muted);margin-top:8px;}
+  @media (max-width:600px){
+    body{font-size:17px;}
+    h1{font-size:28px;}
+    table, thead, tbody, th, td, tr{display:block;}
+    thead{display:none;}
+    tbody tr{border-bottom:1px solid var(--border);padding:14px 16px;}
+    tbody td{border:none;padding:5px 0;}
+    .right{text-align:left;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Buku Kas &middot; Kelurahan Rejomulyo</p>
+    <h1>Laporan Keuangan RT 07 / RW 01</h1>
+    <p class="desc">Dana Bantuan Operasional RT — dicatat dan dapat diperiksa oleh seluruh warga.</p>
+  </header>
+
+  <div class="summary" id="summary"></div>
+
+  <table id="table">
+    <thead>
+      <tr><th>Tanggal</th><th>Keterangan</th><th>Masuk</th><th>Keluar</th><th>Saldo</th></tr>
+    </thead>
+    <tbody id="tbody">
+      <tr><td colspan="5" class="empty">Memuat data…</td></tr>
+    </tbody>
+  </table>
+
+  <p class="status mono" id="status"></p>
+
+  <footer>
+    Laporan ini bersumber dari bukti kas (nota/kuitansi) yang dipegang bendahara RT.
+    Data diperbarui oleh bendahara melalui panel khusus (admin.html) dan disimpan di repository GitHub ini.
+  </footer>
+</div>
+
+<script>
+function formatRupiah(n){
+  const num = Number(n) || 0;
+  return "Rp " + num.toLocaleString("id-ID");
+}
+function formatTanggal(iso){
+  if(!iso) return "-";
+  const d = new Date(iso);
+  return d.toLocaleDateString("id-ID",{day:"2-digit",month:"long",year:"numeric"});
+}
+function escapeHtml(str){
+  return String(str ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+async function load(){
+  const statusEl = document.getElementById("status");
+  try{
+    const res = await fetch("data.json?t=" + Date.now());
+    if(!res.ok) throw new Error("Gagal mengambil data.json");
+    const data = await res.json();
+    render(data);
+    statusEl.textContent = "Terakhir dimuat: " + new Date().toLocaleString("id-ID");
+  }catch(e){
+    document.getElementById("tbody").innerHTML =
+      '<tr><td colspan="5" class="empty">Gagal memuat data.json. Pastikan file ini ada di repository yang sama.</td></tr>';
+    statusEl.textContent = "Error: " + e.message;
+  }
+}
+
+function render(data){
+  const saldoAwal = Number(data.saldoAwal || 0);
+  const transaksi = Array.isArray(data.transaksi) ? data.transaksi : [];
+  const totalMasuk = transaksi.filter(t=>t.jenis==="masuk").reduce((s,t)=>s+Number(t.jumlah||0),0);
+  const totalKeluar = transaksi.filter(t=>t.jenis==="keluar").reduce((s,t)=>s+Number(t.jumlah||0),0);
+  const saldoAkhir = saldoAwal + totalMasuk - totalKeluar;
+
+  document.getElementById("summary").innerHTML = `
+    <div class="cell"><p class="lbl">Saldo Awal</p><p class="val">${formatRupiah(saldoAwal)}</p></div>
+    <div class="cell"><p class="lbl">Total Pemasukan</p><p class="val masuk">${formatRupiah(totalMasuk)}</p></div>
+    <div class="cell"><p class="lbl">Total Pengeluaran</p><p class="val keluar">${formatRupiah(totalKeluar)}</p></div>
+    <div class="cell total"><p class="lbl">Saldo Akhir</p><p class="val">${formatRupiah(saldoAkhir)}</p></div>
+  `;
+
+  const sorted = [...transaksi].sort((a,b)=> new Date(a.tanggal)-new Date(b.tanggal) || (a.createdAt||0)-(b.createdAt||0));
+  let running = saldoAwal;
+  const withRunning = sorted.map(t=>{
+    running = t.jenis==="masuk" ? running+Number(t.jumlah||0) : running-Number(t.jumlah||0);
+    return {...t, runningSaldo:running};
+  }).reverse();
+
+  const tbody = document.getElementById("tbody");
+  if(withRunning.length===0){
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">Belum ada transaksi tercatat.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = withRunning.map(t=>`
+    <tr>
+      <td>${escapeHtml(formatTanggal(t.tanggal))}</td>
+      <td>${escapeHtml(t.keterangan)}<span class="sub">${escapeHtml(t.kategori)} &middot; dicatat oleh ${escapeHtml(t.dicatatOleh)}</span></td>
+      <td class="right masuk">${t.jenis==="masuk" ? escapeHtml(formatRupiah(t.jumlah)) : "—"}</td>
+      <td class="right keluar">${t.jenis==="keluar" ? escapeHtml(formatRupiah(t.jumlah)) : "—"}</td>
+      <td class="right bold">${escapeHtml(formatRupiah(t.runningSaldo))}</td>
+    </tr>
+  `).join("");
+}
+
+load();
+</script>
+</body>
+</html>
